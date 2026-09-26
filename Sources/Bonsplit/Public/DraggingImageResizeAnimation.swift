@@ -6,11 +6,13 @@ import QuartzCore
 /// thumbnail. Other dragging items are left as they are.
 ///
 /// AppKit has no animated drag-image change, so this re-sets the dragging
-/// frame on a common-mode timer, which keeps firing inside the drag's
-/// event-tracking run loop. Frames are screen coordinates.
+/// frame from a display link on the screen under the pointer, scheduled in
+/// the common modes so it keeps firing inside the drag's event-tracking run
+/// loop. It runs only for the transition itself. Frames are screen
+/// coordinates.
 @MainActor
 public final class DraggingImageResizeAnimation {
-    private var timer: Timer?
+    private var displayLink: CADisplayLink?
 
     public init() {}
 
@@ -28,7 +30,7 @@ public final class DraggingImageResizeAnimation {
         image: NSImage,
         from fromSize: NSSize,
         to toSize: NSSize,
-        duration: TimeInterval = 0.18
+        duration: TimeInterval = 0.22
     ) {
         cancel()
         let startTime = CACurrentMediaTime()
@@ -52,19 +54,21 @@ public final class DraggingImageResizeAnimation {
             return progress < 1
         }
         guard step() else { return }
-        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                if !step() { self?.cancel() }
-            }
+        let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }
+            ?? NSScreen.main
+        guard let screen else { return }
+        let target = DisplayLinkTarget { [weak self] in
+            if !step() { self?.cancel() }
         }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        let displayLink = screen.displayLink(target: target, selector: #selector(DisplayLinkTarget.tick(_:)))
+        displayLink.add(to: .main, forMode: .common)
+        self.displayLink = displayLink
     }
 
     /// Stops the animation, leaving the drag image where it is.
     public func cancel() {
-        timer?.invalidate()
-        timer = nil
+        displayLink?.invalidate()
+        displayLink = nil
     }
 
     /// The eased size at `progress` (0...1), decelerating toward `toSize`.
@@ -85,5 +89,20 @@ public final class DraggingImageResizeAnimation {
             width: size.width,
             height: size.height
         )
+    }
+}
+
+/// Objective-C target for the display link, which retains it until the
+/// link is invalidated.
+@MainActor
+private final class DisplayLinkTarget: NSObject {
+    private let onTick: @MainActor () -> Void
+
+    init(onTick: @escaping @MainActor () -> Void) {
+        self.onTick = onTick
+    }
+
+    @objc func tick(_ link: CADisplayLink) {
+        onTick()
     }
 }
