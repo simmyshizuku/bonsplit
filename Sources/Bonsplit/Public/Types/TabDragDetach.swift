@@ -9,29 +9,25 @@ public struct TabDragDetachContext: Sendable {
     public let sourcePaneId: PaneID
     /// The pointer location in screen coordinates.
     public let screenPoint: NSPoint
-    /// Where the pointer would sit, measured from a pane's top-left corner,
-    /// if the tab were that pane's first tab. A host places a torn-off
-    /// window with this offset so the pointer lands on the tab it grabbed.
-    public let pointerOffsetInPane: CGSize
 
-    public init(tab: Tab, sourcePaneId: PaneID, screenPoint: NSPoint, pointerOffsetInPane: CGSize) {
+    public init(tab: Tab, sourcePaneId: PaneID, screenPoint: NSPoint) {
         self.tab = tab
         self.sourcePaneId = sourcePaneId
         self.screenPoint = screenPoint
-        self.pointerOffsetInPane = pointerOffsetInPane
     }
 }
 
 /// The image a tab drag shows while it is over no destination, typically a
-/// thumbnail of the window the tab would become.
+/// thumbnail of the window the tab would become. Bonsplit centers it on the
+/// pointer and animates the tab's own drag image into it.
 public struct TabDragDetachedPreview {
-    /// The preview image, drawn scaled into ``frame``.
+    /// The preview image, drawn scaled to ``size``.
     public let image: NSImage
-    /// The preview's frame in screen coordinates for the current pointer.
-    public let frame: NSRect
+    /// The preview's on-screen size.
+    public let size: NSSize
 
-    public init(image: NSImage, frame: NSRect) {
+    public init(image: NSImage, size: NSSize) {
         self.image = image
-        self.frame = frame
+        self.size = size
     }
 }

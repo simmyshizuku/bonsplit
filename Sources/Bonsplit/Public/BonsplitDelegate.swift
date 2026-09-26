@@ -72,7 +72,8 @@ public protocol BonsplitDelegate: AnyObject {
     /// Called while a tab drag moves over no destination, such as the desktop
     /// or another app's window. Return a preview to replace the drag image
     /// (for example a thumbnail of the window the tab would become), or `nil`
-    /// to keep or restore the tab's own drag image. Called on every pointer
+    /// to keep or restore the tab's own drag image. The preview is centered
+    /// on the pointer, and the switch into it is animated. Called on every pointer
     /// move, so hosts should cache expensive images per drag.
     func splitTabBar(_ controller: BonsplitController, detachedPreviewFor context: TabDragDetachContext) -> TabDragDetachedPreview?
 

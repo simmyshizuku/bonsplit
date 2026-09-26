@@ -17,7 +17,6 @@ struct TabDragUnplacedReleaseTests {
         #expect(report.tabId == fixture.tabId)
         #expect(report.paneId == fixture.paneId)
         #expect(report.point == NSPoint(x: 40, y: 900))
-        #expect(report.pointerOffsetInPane == CGSize(width: 30, height: 12))
         #expect(fixture.controller.internalController.tabDragSession == nil)
     }
 
@@ -27,7 +26,7 @@ struct TabDragUnplacedReleaseTests {
         let image = NSImage(size: NSSize(width: 10, height: 10))
         fixture.delegate.preview = TabDragDetachedPreview(
             image: image,
-            frame: NSRect(x: 1, y: 2, width: 30, height: 20)
+            size: NSSize(width: 30, height: 20)
         )
 
         let preview = try #require(
@@ -35,11 +34,10 @@ struct TabDragUnplacedReleaseTests {
         )
 
         #expect(preview.image === image)
-        #expect(preview.frame == NSRect(x: 1, y: 2, width: 30, height: 20))
+        #expect(preview.size == NSSize(width: 30, height: 20))
         let request = try #require(fixture.delegate.previewRequests.first)
         #expect(request.tabId == fixture.tabId)
         #expect(request.point == NSPoint(x: 5, y: 6))
-        #expect(request.pointerOffsetInPane == CGSize(width: 30, height: 12))
     }
 
     @Test("Without a host preview the tab keeps its own drag image")
@@ -117,7 +115,6 @@ struct TabDragUnplacedReleaseTests {
         let source = TabDragSessionSource(
             generation: generation,
             transfer: transfer,
-            pointerOffsetInPane: CGSize(width: 30, height: 12),
             transferRegistration: registration,
             transferRegistry: registry,
             controller: split
@@ -144,7 +141,6 @@ struct TabDragUnplacedReleaseTests {
             let tabId: TabID
             let paneId: PaneID
             let point: NSPoint
-            let pointerOffsetInPane: CGSize
         }
 
         var reports: [Report] = []
@@ -173,8 +169,34 @@ private extension TabDragUnplacedReleaseTests.RecordingDelegate.Report {
         self.init(
             tabId: context.tab.id,
             paneId: context.sourcePaneId,
-            point: context.screenPoint,
-            pointerOffsetInPane: context.pointerOffsetInPane
+            point: context.screenPoint
         )
+    }
+}
+
+@Suite("Dragging image resize animation")
+struct DraggingImageResizeAnimationTests {
+    @Test("The size eases from start to end")
+    func sizeEasesBetweenEnds() {
+        let from = NSSize(width: 100, height: 20)
+        let to = NSSize(width: 300, height: 200)
+
+        #expect(DraggingImageResizeAnimation.size(from: from, to: to, progress: 0) == from)
+        #expect(DraggingImageResizeAnimation.size(from: from, to: to, progress: 1) == to)
+        #expect(DraggingImageResizeAnimation.size(from: from, to: to, progress: 2) == to)
+        let halfway = DraggingImageResizeAnimation.size(from: from, to: to, progress: 0.5)
+        // Ease-out covers most of the distance in the first half.
+        #expect(halfway.width == 275)
+        #expect(halfway.height == 177.5)
+    }
+
+    @Test("Frames are centered on the pointer")
+    func frameIsCenteredOnPointer() {
+        let frame = DraggingImageResizeAnimation.frame(
+            of: NSSize(width: 300, height: 200),
+            centeredOn: NSPoint(x: 500, y: 400)
+        )
+
+        #expect(frame == NSRect(x: 350, y: 300, width: 300, height: 200))
     }
 }

@@ -1023,27 +1023,6 @@ struct TabBarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Where the pointer would sit, from the pane's top-left, if the dragged
-    /// tab were the pane's first tab: its grab point within the tab, shifted
-    /// to the leading tab slot. The tab bar spans the top of its pane.
-    private func pointerOffsetInPaneAsFirstTab(
-        draggingFrame: NSRect,
-        in sourceView: NSView,
-        event: NSEvent
-    ) -> CGSize {
-        let pointer = sourceView.convert(event.locationInWindow, from: nil)
-        let bounds = sourceView.bounds
-        let tabTop = sourceView.isFlipped ? draggingFrame.minY - bounds.minY : bounds.maxY - draggingFrame.maxY
-        let pointerFromTabTop = sourceView.isFlipped ? pointer.y - draggingFrame.minY : draggingFrame.maxY - pointer.y
-        let leadingTabMinX = pane.tabs.first
-            .flatMap { tabItemGeometryRegistry.frame(for: $0.id, in: sourceView) }
-            .map { max($0.minX - bounds.minX, 0) } ?? 0
-        return CGSize(
-            width: leadingTabMinX + pointer.x - draggingFrame.minX,
-            height: max(tabTop, 0) + pointerFromTabTop
-        )
-    }
-
     private var dragAndHoverBackground: some View {
         TabBarDragAndHoverView(
             isMinimalMode: isMinimalMode,
@@ -1060,12 +1039,7 @@ struct TabBarView: View {
                     sourceView: sourceView,
                     event: event,
                     draggingFrame: draggingFrame,
-                    dragImage: dragImage,
-                    pointerOffsetInPane: pointerOffsetInPaneAsFirstTab(
-                        draggingFrame: draggingFrame,
-                        in: sourceView,
-                        event: event
-                    )
+                    dragImage: dragImage
                 )
             },
             onDoubleClick: {

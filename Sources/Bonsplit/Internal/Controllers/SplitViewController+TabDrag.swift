@@ -46,8 +46,7 @@ extension SplitViewController {
         sourceView: NSView,
         event: NSEvent,
         draggingFrame: NSRect,
-        dragImage: NSImage,
-        pointerOffsetInPane: CGSize = .zero
+        dragImage: NSImage
     ) -> Bool {
 #if DEBUG
         NSLog("[Bonsplit Drag] begin native session for tab: \(tab.title)")
@@ -60,7 +59,6 @@ extension SplitViewController {
         let source = TabDragSessionSource(
             generation: generation,
             transfer: transfer,
-            pointerOffsetInPane: pointerOffsetInPane,
             transferRegistration: registration,
             transferRegistry: tabDragTransferRegistry,
             controller: self
@@ -97,47 +95,26 @@ extension SplitViewController {
 
     /// Asks the delegate for a detached preview while a tab drag is over no
     /// destination.
-    func tabDragDetachedPreview(
-        _ transfer: TabDragTransfer,
-        pointerOffsetInPane: CGSize,
-        atScreenPoint screenPoint: NSPoint
-    ) -> TabDragDetachedPreview? {
+    func tabDragDetachedPreview(_ transfer: TabDragTransfer, atScreenPoint screenPoint: NSPoint) -> TabDragDetachedPreview? {
         guard let publicController,
-              let context = tabDragDetachContext(
-                transfer,
-                pointerOffsetInPane: pointerOffsetInPane,
-                atScreenPoint: screenPoint
-              ) else { return nil }
+              let context = tabDragDetachContext(transfer, atScreenPoint: screenPoint) else { return nil }
         return publicController.delegate?.splitTabBar(publicController, detachedPreviewFor: context)
     }
 
     /// Forwards a tab release that no destination accepted to the delegate.
     /// A tab closed while the drag was in flight is not reported.
-    func tabDragDidEndWithoutDrop(
-        _ transfer: TabDragTransfer,
-        pointerOffsetInPane: CGSize,
-        atScreenPoint screenPoint: NSPoint
-    ) {
+    func tabDragDidEndWithoutDrop(_ transfer: TabDragTransfer, atScreenPoint screenPoint: NSPoint) {
         guard let publicController,
-              let context = tabDragDetachContext(
-                transfer,
-                pointerOffsetInPane: pointerOffsetInPane,
-                atScreenPoint: screenPoint
-              ) else { return }
+              let context = tabDragDetachContext(transfer, atScreenPoint: screenPoint) else { return }
         publicController.delegate?.splitTabBar(publicController, didEndTabDragWithoutDrop: context)
     }
 
-    private func tabDragDetachContext(
-        _ transfer: TabDragTransfer,
-        pointerOffsetInPane: CGSize,
-        atScreenPoint screenPoint: NSPoint
-    ) -> TabDragDetachContext? {
+    private func tabDragDetachContext(_ transfer: TabDragTransfer, atScreenPoint screenPoint: NSPoint) -> TabDragDetachContext? {
         guard let tab = publicController?.tab(transfer.tab.id) else { return nil }
         return TabDragDetachContext(
             tab: tab,
             sourcePaneId: transfer.sourcePaneId,
-            screenPoint: screenPoint,
-            pointerOffsetInPane: pointerOffsetInPane
+            screenPoint: screenPoint
         )
     }
 }

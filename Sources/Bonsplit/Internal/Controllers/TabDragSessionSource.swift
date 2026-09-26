@@ -15,23 +15,21 @@ final class TabDragSessionSource: NSObject, NSDraggingSource {
     // drag; releasing either object during an accepted drop can strand the
     // WindowManager drag connection.
     private var sourceView: NSView?
-    private let pointerOffsetInPane: CGSize
     /// The tab's own drag image and its origin relative to the pointer, used
     /// to restore the image after a detached preview.
     private var tabDragImage: (image: NSImage, size: NSSize, originFromPointer: CGVector)?
     private var isShowingDetachedPreview = false
+    private let resizeAnimation = DraggingImageResizeAnimation()
 
     init(
         generation: Int,
         transfer: TabDragTransfer,
-        pointerOffsetInPane: CGSize = .zero,
         transferRegistration: TabDragTransferRegistration,
         transferRegistry: TabDragTransferRegistry,
         controller: SplitViewController
     ) {
         self.generation = generation
         self.transfer = transfer
-        self.pointerOffsetInPane = pointerOffsetInPane
         self.transferRegistration = transferRegistration
         self.transferRegistry = transferRegistry
         self.controller = controller
@@ -57,39 +55,40 @@ final class TabDragSessionSource: NSObject, NSDraggingSource {
     func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
         let preview = detachedPreview(atScreenPoint: screenPoint)
         if let preview {
-            // Frames are in screen coordinates when no view is given.
-            setDraggingImage(of: session, frame: preview.frame, contents: preview.image)
+            guard !isShowingDetachedPreview else { return }
             isShowingDetachedPreview = true
+            // Grow (or shrink) from the tab's image into the thumbnail,
+            // centered on the pointer.
+            resizeAnimation.start(
+                session: session,
+                image: preview.image,
+                from: tabDragImage?.size ?? preview.size,
+                to: preview.size
+            )
         } else if isShowingDetachedPreview, let tabDragImage {
+            resizeAnimation.cancel()
+            // Frames are in screen coordinates when no view is given.
             let frame = NSRect(
                 x: screenPoint.x + tabDragImage.originFromPointer.dx,
                 y: screenPoint.y + tabDragImage.originFromPointer.dy,
                 width: tabDragImage.size.width,
                 height: tabDragImage.size.height
             )
-            setDraggingImage(of: session, frame: frame, contents: tabDragImage.image)
+            session.enumerateDraggingItems(
+                options: [],
+                for: nil,
+                classes: [NSPasteboardItem.self],
+                searchOptions: [:]
+            ) { item, _, _ in
+                item.setDraggingFrame(frame, contents: tabDragImage.image)
+            }
             isShowingDetachedPreview = false
         }
     }
 
     /// Asks the host for the image to show while the drag is over no destination.
     func detachedPreview(atScreenPoint screenPoint: NSPoint) -> TabDragDetachedPreview? {
-        controller?.tabDragDetachedPreview(
-            transfer,
-            pointerOffsetInPane: pointerOffsetInPane,
-            atScreenPoint: screenPoint
-        )
-    }
-
-    private func setDraggingImage(of session: NSDraggingSession, frame: NSRect, contents: NSImage) {
-        session.enumerateDraggingItems(
-            options: [],
-            for: nil,
-            classes: [NSPasteboardItem.self],
-            searchOptions: [:]
-        ) { item, _, _ in
-            item.setDraggingFrame(frame, contents: contents)
-        }
+        controller?.tabDragDetachedPreview(transfer, atScreenPoint: screenPoint)
     }
 
     /// Completes a superseded source after a later native pointer boundary
@@ -132,11 +131,7 @@ final class TabDragSessionSource: NSObject, NSDraggingSource {
     /// terminal cleanup, so the host may relocate the tab (for example into a
     /// new window) without racing this drag's own state.
     func reportUnplacedRelease(atScreenPoint screenPoint: NSPoint) {
-        controller?.tabDragDidEndWithoutDrop(
-            transfer,
-            pointerOffsetInPane: pointerOffsetInPane,
-            atScreenPoint: screenPoint
-        )
+        controller?.tabDragDidEndWithoutDrop(transfer, atScreenPoint: screenPoint)
     }
 
     /// AppKit ends an Escape-cancelled drag with the same empty operation as
@@ -148,6 +143,7 @@ final class TabDragSessionSource: NSObject, NSDraggingSource {
     func finishDrag() {
         guard !didFinish else { return }
         didFinish = true
+        resizeAnimation.cancel()
         transferRegistry.end(transferRegistration)
         controller?.nativeTabDragSessionDidEnd(generation: generation)
         sourceView = nil
