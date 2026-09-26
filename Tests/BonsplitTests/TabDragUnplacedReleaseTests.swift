@@ -17,7 +17,37 @@ struct TabDragUnplacedReleaseTests {
         #expect(report.tabId == fixture.tabId)
         #expect(report.paneId == fixture.paneId)
         #expect(report.point == NSPoint(x: 40, y: 900))
+        #expect(report.pointerOffsetInPane == CGSize(width: 30, height: 12))
         #expect(fixture.controller.internalController.tabDragSession == nil)
+    }
+
+    @Test("A drag over no destination shows the host's detached preview")
+    func detachedPreviewComesFromHost() throws {
+        let fixture = try makeFixture()
+        let image = NSImage(size: NSSize(width: 10, height: 10))
+        fixture.delegate.preview = TabDragDetachedPreview(
+            image: image,
+            frame: NSRect(x: 1, y: 2, width: 30, height: 20)
+        )
+
+        let preview = try #require(
+            fixture.source.detachedPreview(atScreenPoint: NSPoint(x: 5, y: 6))
+        )
+
+        #expect(preview.image === image)
+        #expect(preview.frame == NSRect(x: 1, y: 2, width: 30, height: 20))
+        let request = try #require(fixture.delegate.previewRequests.first)
+        #expect(request.tabId == fixture.tabId)
+        #expect(request.point == NSPoint(x: 5, y: 6))
+        #expect(request.pointerOffsetInPane == CGSize(width: 30, height: 12))
+    }
+
+    @Test("Without a host preview the tab keeps its own drag image")
+    func noHostPreviewKeepsTabImage() throws {
+        let fixture = try makeFixture()
+
+        #expect(fixture.source.detachedPreview(atScreenPoint: .zero) == nil)
+        #expect(fixture.delegate.previewRequests.count == 1)
     }
 
     @Test("A tab closed while its drag was in flight is not reported")
@@ -87,6 +117,7 @@ struct TabDragUnplacedReleaseTests {
         let source = TabDragSessionSource(
             generation: generation,
             transfer: transfer,
+            pointerOffsetInPane: CGSize(width: 30, height: 12),
             transferRegistration: registration,
             transferRegistry: registry,
             controller: split
@@ -108,22 +139,42 @@ struct TabDragUnplacedReleaseTests {
         let paneId: PaneID
     }
 
-    private final class RecordingDelegate: BonsplitDelegate {
+    fileprivate final class RecordingDelegate: BonsplitDelegate {
         struct Report {
             let tabId: TabID
             let paneId: PaneID
             let point: NSPoint
+            let pointerOffsetInPane: CGSize
         }
 
         var reports: [Report] = []
+        var previewRequests: [Report] = []
+        var preview: TabDragDetachedPreview?
 
         func splitTabBar(
             _ controller: BonsplitController,
-            didEndTabDragWithoutDrop tab: Tab,
-            fromPane pane: PaneID,
-            atScreenPoint point: NSPoint
-        ) {
-            reports.append(Report(tabId: tab.id, paneId: pane, point: point))
+            detachedPreviewFor context: TabDragDetachContext
+        ) -> TabDragDetachedPreview? {
+            previewRequests.append(Report(context))
+            return preview
         }
+
+        func splitTabBar(
+            _ controller: BonsplitController,
+            didEndTabDragWithoutDrop context: TabDragDetachContext
+        ) {
+            reports.append(Report(context))
+        }
+    }
+}
+
+private extension TabDragUnplacedReleaseTests.RecordingDelegate.Report {
+    init(_ context: TabDragDetachContext) {
+        self.init(
+            tabId: context.tab.id,
+            paneId: context.sourcePaneId,
+            point: context.screenPoint,
+            pointerOffsetInPane: context.pointerOffsetInPane
+        )
     }
 }

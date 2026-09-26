@@ -69,14 +69,20 @@ public protocol BonsplitDelegate: AnyObject {
     /// Called when the user chooses a host-provided destination from the tab move submenu.
     func splitTabBar(_ controller: BonsplitController, didRequestTabMoveToDestination destinationId: String, for tab: Tab, inPane pane: PaneID)
 
-    /// Called when a tab drag is released where no destination accepted it,
-    /// such as the desktop or another app's window. Escape-cancelled drags
-    /// are not reported. `point` is in screen coordinates.
+    /// Called while a tab drag moves over no destination, such as the desktop
+    /// or another app's window. Return a preview to replace the drag image
+    /// (for example a thumbnail of the window the tab would become), or `nil`
+    /// to keep or restore the tab's own drag image. Called on every pointer
+    /// move, so hosts should cache expensive images per drag.
+    func splitTabBar(_ controller: BonsplitController, detachedPreviewFor context: TabDragDetachContext) -> TabDragDetachedPreview?
+
+    /// Called when a tab drag is released where no destination accepted it.
+    /// Escape-cancelled drags are not reported.
     ///
     /// Delivered from AppKit's drag-source completion after Bonsplit has
     /// finished the drag; hosts that change window topology in response
     /// should defer that work to the next main-queue turn.
-    func splitTabBar(_ controller: BonsplitController, didEndTabDragWithoutDrop tab: Tab, fromPane pane: PaneID, atScreenPoint point: NSPoint)
+    func splitTabBar(_ controller: BonsplitController, didEndTabDragWithoutDrop context: TabDragDetachContext)
 
     // MARK: - Geometry
 
@@ -119,7 +125,8 @@ public extension BonsplitDelegate {
     func splitTabBar(_ controller: BonsplitController, didRequestCustomAction identifier: String, inPane pane: PaneID) {}
     func splitTabBar(_ controller: BonsplitController, didRequestTabContextAction action: TabContextAction, for tab: Tab, inPane pane: PaneID) {}
     func splitTabBar(_ controller: BonsplitController, didRequestTabMoveToDestination destinationId: String, for tab: Tab, inPane pane: PaneID) {}
-    func splitTabBar(_ controller: BonsplitController, didEndTabDragWithoutDrop tab: Tab, fromPane pane: PaneID, atScreenPoint point: NSPoint) {}
+    func splitTabBar(_ controller: BonsplitController, detachedPreviewFor context: TabDragDetachContext) -> TabDragDetachedPreview? { nil }
+    func splitTabBar(_ controller: BonsplitController, didEndTabDragWithoutDrop context: TabDragDetachContext) {}
     func splitTabBar(_ controller: BonsplitController, didChangeGeometry snapshot: LayoutSnapshot) {}
     func splitTabBar(_ controller: BonsplitController, shouldNotifyDuringDrag: Bool) -> Bool { false }
     func splitTabBarDividerDragDidBegin(_ controller: BonsplitController) {}
