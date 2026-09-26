@@ -99,6 +99,7 @@ struct TabDragTransferRegistryTests {
         )
         let source = TabDragSessionSource(
             generation: generation,
+            transfer: TabDragTransfer(tab: Tab(from: sourceTab), sourcePaneId: sourcePane.id),
             transferRegistration: registration,
             transferRegistry: registry,
             controller: sourceController.internalController
@@ -130,6 +131,7 @@ struct TabDragTransferRegistryTests {
         )
         let source = TabDragSessionSource(
             generation: generation,
+            transfer: TabDragTransfer(tab: Tab(from: sourceTab), sourcePaneId: sourcePane.id),
             transferRegistration: registration,
             transferRegistry: registry,
             controller: sourceController.internalController
@@ -165,6 +167,7 @@ struct TabDragTransferRegistryTests {
         )
         let firstSource = TabDragSessionSource(
             generation: firstGeneration,
+            transfer: TabDragTransfer(tab: Tab(from: firstTab), sourcePaneId: pane.id),
             transferRegistration: firstRegistration,
             transferRegistry: registry,
             controller: split
@@ -303,6 +306,7 @@ struct TabDragTransferRegistryTests {
         )
         let source = TabDragSessionSource(
             generation: generation,
+            transfer: TabDragTransfer(tab: Tab(from: draggedTab), sourcePaneId: sourcePane.id),
             transferRegistration: registration,
             transferRegistry: registry,
             controller: controller.internalController

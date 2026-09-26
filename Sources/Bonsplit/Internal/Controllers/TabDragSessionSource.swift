@@ -4,6 +4,7 @@ import AppKit
 @MainActor
 final class TabDragSessionSource: NSObject, NSDraggingSource {
     private let generation: Int
+    private let transfer: TabDragTransfer
     private let transferRegistration: TabDragTransferRegistration
     private let transferRegistry: TabDragTransferRegistry
     private weak var controller: SplitViewController?
@@ -17,11 +18,13 @@ final class TabDragSessionSource: NSObject, NSDraggingSource {
 
     init(
         generation: Int,
+        transfer: TabDragTransfer,
         transferRegistration: TabDragTransferRegistration,
         transferRegistry: TabDragTransferRegistry,
         controller: SplitViewController
     ) {
         self.generation = generation
+        self.transfer = transfer
         self.transferRegistration = transferRegistration
         self.transferRegistry = transferRegistry
         self.controller = controller
@@ -52,11 +55,35 @@ final class TabDragSessionSource: NSObject, NSDraggingSource {
         endedAt screenPoint: NSPoint,
         operation: NSDragOperation
     ) {
+        let isCancellation = Self.isCancellation(NSApp.currentEvent)
+#if DEBUG
+        dlog(
+            "tab.dragEnded op=\(operation.rawValue) cancel=\(isCancellation ? 1 : 0) " +
+            "event=\(NSApp.currentEvent.map { String($0.type.rawValue) } ?? "nil") " +
+            "point=\(Int(screenPoint.x)),\(Int(screenPoint.y))"
+        )
+#endif
         finishDrag()
         // The system drag pasteboard advertises this session's transfer type
         // until another drag replaces it, which keeps host drop-capture
         // hit-testing armed forever and blocks the next tab drag from starting.
         transferRegistration.clearResidualCapability(from: session.draggingPasteboard)
+        if operation.isEmpty, !isCancellation {
+            reportUnplacedRelease(atScreenPoint: screenPoint)
+        }
+    }
+
+    /// Reports a release that no destination accepted, after the source's
+    /// terminal cleanup, so the host may relocate the tab (for example into a
+    /// new window) without racing this drag's own state.
+    func reportUnplacedRelease(atScreenPoint screenPoint: NSPoint) {
+        controller?.tabDragDidEndWithoutDrop(transfer, atScreenPoint: screenPoint)
+    }
+
+    /// AppKit ends an Escape-cancelled drag with the same empty operation as
+    /// a release over no destination; only the triggering event differs.
+    static func isCancellation(_ event: NSEvent?) -> Bool {
+        event?.type == .keyDown
     }
 
     func finishDrag() {

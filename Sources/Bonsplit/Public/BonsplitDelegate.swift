@@ -69,6 +69,15 @@ public protocol BonsplitDelegate: AnyObject {
     /// Called when the user chooses a host-provided destination from the tab move submenu.
     func splitTabBar(_ controller: BonsplitController, didRequestTabMoveToDestination destinationId: String, for tab: Tab, inPane pane: PaneID)
 
+    /// Called when a tab drag is released where no destination accepted it,
+    /// such as the desktop or another app's window. Escape-cancelled drags
+    /// are not reported. `point` is in screen coordinates.
+    ///
+    /// Delivered from AppKit's drag-source completion after Bonsplit has
+    /// finished the drag; hosts that change window topology in response
+    /// should defer that work to the next main-queue turn.
+    func splitTabBar(_ controller: BonsplitController, didEndTabDragWithoutDrop tab: Tab, fromPane pane: PaneID, atScreenPoint point: NSPoint)
+
     // MARK: - Geometry
 
     /// Called when any pane geometry changes (resize, split, close)
@@ -110,6 +119,7 @@ public extension BonsplitDelegate {
     func splitTabBar(_ controller: BonsplitController, didRequestCustomAction identifier: String, inPane pane: PaneID) {}
     func splitTabBar(_ controller: BonsplitController, didRequestTabContextAction action: TabContextAction, for tab: Tab, inPane pane: PaneID) {}
     func splitTabBar(_ controller: BonsplitController, didRequestTabMoveToDestination destinationId: String, for tab: Tab, inPane pane: PaneID) {}
+    func splitTabBar(_ controller: BonsplitController, didEndTabDragWithoutDrop tab: Tab, fromPane pane: PaneID, atScreenPoint point: NSPoint) {}
     func splitTabBar(_ controller: BonsplitController, didChangeGeometry snapshot: LayoutSnapshot) {}
     func splitTabBar(_ controller: BonsplitController, shouldNotifyDuringDrag: Bool) -> Bool { false }
     func splitTabBarDividerDragDidBegin(_ controller: BonsplitController) {}

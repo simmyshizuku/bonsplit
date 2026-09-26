@@ -58,6 +58,7 @@ extension SplitViewController {
         let generation = beginTabDrag(tab, from: paneId)
         let source = TabDragSessionSource(
             generation: generation,
+            transfer: transfer,
             transferRegistration: registration,
             transferRegistry: tabDragTransferRegistry,
             controller: self
@@ -83,5 +84,18 @@ extension SplitViewController {
     func nativeTabDragSessionDidEnd(generation: Int) {
         nativeTabDragSources[generation] = nil
         cancelTabDragIfGenerationMatches(generation)
+    }
+
+    /// Forwards a tab release that no destination accepted to the delegate.
+    /// A tab closed while the drag was in flight is not reported.
+    func tabDragDidEndWithoutDrop(_ transfer: TabDragTransfer, atScreenPoint screenPoint: NSPoint) {
+        guard let publicController,
+              let tab = publicController.tab(transfer.tab.id) else { return }
+        publicController.delegate?.splitTabBar(
+            publicController,
+            didEndTabDragWithoutDrop: tab,
+            fromPane: transfer.sourcePaneId,
+            atScreenPoint: screenPoint
+        )
     }
 }
