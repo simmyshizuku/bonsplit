@@ -144,7 +144,7 @@ final class TabDragSessionSource: NSObject, NSDraggingSource {
         guard !didFinish else { return }
         didFinish = true
         resizeAnimation.cancel()
-        transferRegistry.end(transferRegistration)
+        transferRegistry.endNativeDrag(transferRegistration)
         controller?.nativeTabDragSessionDidEnd(generation: generation)
         sourceView = nil
     }
